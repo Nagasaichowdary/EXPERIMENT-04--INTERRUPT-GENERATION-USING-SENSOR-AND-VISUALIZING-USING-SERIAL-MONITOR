@@ -128,34 +128,41 @@ The diagram below shows how the GPIO pins are connected to the 16 interrupt line
 ```
 #include "main.h"
 #include "stdio.h"
-void HAL_GPIO_EXIT_Callback(uint16_t );
+#if defined(__GNUC__)
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#endif
+UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
-#if defined (_ICCARM) || defined (_ARMCC_VERSION)
-#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#elif defined(_GNUC_)
-   /* With GCC, small printf (option LD Linker->Libraries->Small printf
-   set to 'Yes') calls __io_putchar() */
-#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#endif /* _ICCARM_ || __ARMCC_VERSION */
 
 int main(void)
 {
+  HAL_Init();
   SystemClock_Config();
-  /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   while (1)
   {
-	  HAL_GPIO_EXIT_Callback(GPIO_PIN_4);
-	  HAL_Delay(500);
+
+  }
+  }
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+	if(HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_4)==1){
+		printf("INTERRUPT GENERATED \n");
+	}
 }
+PUTCHAR_PROTOTYPE
+{
+	HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1 ,0xFFFF);
+	return ch;
 }
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
@@ -182,7 +189,7 @@ void SystemClock_Config(void)
 static void MX_USART2_UART_Init(void)
 {
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
+  huart2.Init.BaudRate = 9600;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -208,35 +215,25 @@ static void MX_USART2_UART_Init(void)
   {
     Error_Handler();
   }
+
+
 }
+
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
-  /*Configure GPIO pin : PA4 */
   GPIO_InitStruct.Pin = GPIO_PIN_4;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-}
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-void HAL_GPIO_EXIT_Callback(uint16_t GPIO_Pin)
-{
-	if(HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_4)==0)
-	{
-		printf("IR On\n");
-	}
-	else
-	{
-		printf("IR Off\n");
-	}
-}
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
-PUTCHAR_PROTOTYPE
-{
-  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
-  return ch;
 }
 void Error_Handler(void)
 {
@@ -244,7 +241,15 @@ void Error_Handler(void)
   while (1)
   {
   }
+
 }
+
+#ifdef  USE_FULL_ASSERT
+void assert_failed(uint8_t *file, uint32_t line)
+{
+
+}
+#endif
 ```
 
 
